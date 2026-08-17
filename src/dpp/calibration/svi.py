@@ -53,6 +53,16 @@ def get_svi_surface(T_expiries: np.ndarray, svi_params: np.ndarray) -> Any:
     T_exp_jax = jnp.array(T_expiries)
     params_jax = jnp.array(svi_params)
     
+    if len(T_expiries) == 1:
+        @jax.jit
+        def w_surface(k: Any, T: Any) -> Any:
+            # Safe T to avoid division by zero
+            T_safe = jnp.where(T > 0, T, 1e-10)
+            p = params_jax[0]
+            w_val = svi_variance_jax(k, p[0], p[1], p[2], p[3], p[4])
+            return w_val * (T_safe / T_exp_jax[0])
+        return w_surface
+        
     @jax.jit
     def w_surface(k: Any, T: Any) -> Any:
         # Safe T to avoid division by zero
