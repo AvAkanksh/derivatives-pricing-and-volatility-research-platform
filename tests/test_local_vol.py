@@ -1,5 +1,6 @@
 import pytest
 import numpy as np
+import jax
 import jax.numpy as jnp
 from dpp.core.models import PricingParams
 from dpp.pricers.local_vol import LocalVolatilityModel
@@ -83,3 +84,26 @@ def test_svi_and_dupire_flow():
     # Local vol should be positive and reasonable
     assert vol > 0.0
     assert 0.1 < vol < 0.6
+
+def test_pde_pricing_non_flat_local_vol():
+    # Setup a simple SVI surface and price using LocalVolatilityModel
+    T_expiries = np.array([0.5, 1.0])
+    svi_params = np.array([
+        [0.04, 0.1, -0.2, 0.0, 0.1],  # T = 0.5
+        [0.06, 0.1, -0.2, 0.0, 0.1]   # T = 1.0
+    ])
+    w_surface = get_svi_surface(T_expiries, svi_params)
+    loc_vol_single, _ = local_vol_surface(w_surface)
+    
+    pde_model = LocalVolatilityModel(n_space=51, n_time=50)
+    params = PricingParams(spot=100.0, strike=100.0, maturity=0.75, rate=0.05, div_yield=0.0, sigma=0.20, option_type="call")
+    
+    def loc_vol_fn(S, t):
+        if jnp.ndim(S) == 0:
+            return loc_vol_single(100.0, S, t)
+        else:
+            return jax.vmap(lambda s: loc_vol_single(100.0, s, t))(S)
+            
+    p = pde_model.price(params, local_vol_fn=loc_vol_fn, ref_spot=100.0)
+    assert p > 0.0
+

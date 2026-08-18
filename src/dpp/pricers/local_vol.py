@@ -126,11 +126,11 @@ def pde_price_jax(
         D_int = -A_int * V_prev[:-2] + (2.0 - B_int) * V_prev[1:-1] - C_int * V_prev[2:]
         
         # Boundary conditions at tau_next
-        D_0_call = 0.0
-        D_N_call = S_grid[-1] * jnp.exp(-q * tau_next) - strike * jnp.exp(-r * tau_next)
+        D_0_call = jnp.maximum(0.0, S_grid[0] * jnp.exp(-q * tau_next) - strike * jnp.exp(-r * tau_next))
+        D_N_call = jnp.maximum(0.0, S_grid[-1] * jnp.exp(-q * tau_next) - strike * jnp.exp(-r * tau_next))
         
-        D_0_put = strike * jnp.exp(-r * tau_next) - S_grid[0] * jnp.exp(-q * tau_next)
-        D_N_put = 0.0
+        D_0_put = jnp.maximum(0.0, strike * jnp.exp(-r * tau_next) - S_grid[0] * jnp.exp(-q * tau_next))
+        D_N_put = jnp.maximum(0.0, strike * jnp.exp(-r * tau_next) - S_grid[-1] * jnp.exp(-q * tau_next))
         
         D_0 = jnp.where(is_call > 0.5, D_0_call, D_0_put)
         D_N = jnp.where(is_call > 0.5, D_N_call, D_N_put)
